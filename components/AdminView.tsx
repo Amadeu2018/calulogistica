@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { MOCK_CONTRACTS, MOCK_DELIVERIES } from '../constants';
+import { MOCK_CONTRACTS, MOCK_DELIVERIES, MOCK_PRODUCTS } from '../constants';
 import { Contract, Delivery, DeliveryStatus } from '../types';
-import { FileText, Printer, Plus, Truck, Search, Filter, Calendar, Package, X, MapPin, User, Clock, Phone, Mail, Box, Home, CheckCircle, AlertCircle, ClipboardList, ArrowRight } from 'lucide-react';
+import { FileText, Printer, Plus, Truck, Search, Filter, Calendar, Package, X, MapPin, User, Clock, Phone, Mail, Box, Home, CheckCircle, AlertCircle, ClipboardList, ArrowRight, History, DollarSign } from 'lucide-react';
 
 export const AdminView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'contracts' | 'deliveries'>('contracts');
+  const [activeTab, setActiveTab] = useState<'contracts' | 'deliveries' | 'history'>('contracts');
   
   // Contract State
   const [showNewContractModal, setShowNewContractModal] = useState(false);
   const [contracts, setContracts] = useState<Contract[]>(MOCK_CONTRACTS);
+  const [filterContractQuery, setFilterContractQuery] = useState(''); // NIF or Name filter
   const [newContract, setNewContract] = useState({
     clientName: '',
     clientNif: '',
@@ -42,10 +43,34 @@ export const AdminView: React.FC = () => {
     setNewContract({ clientName: '', clientNif: '', value: '', terms: '' });
   };
 
+  const filteredContracts = contracts.filter(c => 
+    c.clientNif.toLowerCase().includes(filterContractQuery.toLowerCase()) ||
+    c.clientName.toLowerCase().includes(filterContractQuery.toLowerCase())
+  );
+
   const formatter = new Intl.NumberFormat('pt-AO', {
     style: 'currency',
     currency: 'AOA',
   });
+
+  // Calculate Shipping Cost based on address logic (Simulated)
+  const getEstimatedShipping = (address?: string) => {
+    if (!address) return 2000; // Default local
+    const normalized = address.toLowerCase();
+    
+    // Check for Luanda keywords
+    if (normalized.includes('luanda') || 
+        normalized.includes('viana') || 
+        normalized.includes('talatona') || 
+        normalized.includes('belas') || 
+        normalized.includes('cacuaco') ||
+        normalized.includes('maianga')) {
+      return 2000;
+    }
+    
+    // Interprovincial rate
+    return 5000;
+  };
 
   // Delivery Logic
   const filteredDeliveries = MOCK_DELIVERIES.filter(d => {
@@ -65,10 +90,22 @@ export const AdminView: React.FC = () => {
     return matchesStatus && matchesClient && matchesDate;
   });
 
+  // History Logic (Completed Orders)
+  const historyOrders = MOCK_DELIVERIES.filter(d => 
+    d.status === DeliveryStatus.DELIVERED || d.status === DeliveryStatus.FAILED
+  ).map(d => {
+    const product = MOCK_PRODUCTS.find(p => p.id === d.productId);
+    return {
+      ...d,
+      price: product ? product.price : 0
+    };
+  });
+
   const getStatusColor = (status: DeliveryStatus) => {
     switch (status) {
       case DeliveryStatus.DELIVERED: return 'bg-green-100 text-green-700';
       case DeliveryStatus.PENDING: return 'bg-yellow-100 text-yellow-700';
+      case DeliveryStatus.PROCESSING: return 'bg-orange-100 text-orange-700';
       case DeliveryStatus.IN_TRANSIT: return 'bg-blue-100 text-blue-700';
       case DeliveryStatus.FAILED: return 'bg-red-100 text-red-700';
       default: return 'bg-slate-100 text-slate-700';
@@ -102,7 +139,8 @@ export const AdminView: React.FC = () => {
     if (s.includes('falhou')) return 'bg-red-500 border-red-200 text-white';
     if (s.includes('trânsito') || s.includes('saiu')) return 'bg-blue-500 border-blue-200 text-white';
     if (s.includes('processado')) return 'bg-orange-500 border-orange-200 text-white';
-    return 'bg-slate-500 border-slate-200 text-white';
+    if (s.includes('recebido')) return 'bg-slate-500 border-slate-200 text-white';
+    return 'bg-slate-400 border-slate-200 text-white';
   };
 
   return (
@@ -124,10 +162,10 @@ export const AdminView: React.FC = () => {
 
       {/* Tabs */}
       <div className="mb-6 border-b border-slate-200">
-        <div className="flex space-x-6">
+        <div className="flex space-x-6 overflow-x-auto">
           <button
             onClick={() => setActiveTab('contracts')}
-            className={`pb-3 px-1 flex items-center gap-2 font-medium transition-colors border-b-2 ${
+            className={`pb-3 px-1 flex items-center gap-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
               activeTab === 'contracts' 
                 ? 'border-blue-600 text-blue-600' 
                 : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -137,55 +175,89 @@ export const AdminView: React.FC = () => {
           </button>
           <button
             onClick={() => setActiveTab('deliveries')}
-            className={`pb-3 px-1 flex items-center gap-2 font-medium transition-colors border-b-2 ${
+            className={`pb-3 px-1 flex items-center gap-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
               activeTab === 'deliveries' 
                 ? 'border-blue-600 text-blue-600' 
                 : 'border-transparent text-slate-500 hover:text-slate-700'
             }`}
           >
-            <Truck size={18} /> Entregas
+            <Truck size={18} /> Entregas Ativas
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`pb-3 px-1 flex items-center gap-2 font-medium transition-colors border-b-2 whitespace-nowrap ${
+              activeTab === 'history' 
+                ? 'border-blue-600 text-blue-600' 
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <History size={18} /> Histórico de Encomendas
           </button>
         </div>
       </div>
 
       {/* Contracts View */}
       {activeTab === 'contracts' && (
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in duration-300">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200">
-                <tr>
-                  <th className="px-6 py-4">ID</th>
-                  <th className="px-6 py-4">Cliente</th>
-                  <th className="px-6 py-4">NIF</th>
-                  <th className="px-6 py-4">Data</th>
-                  <th className="px-6 py-4">Valor</th>
-                  <th className="px-6 py-4">Estado</th>
-                  <th className="px-6 py-4">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {contracts.map((contract) => (
-                  <tr key={contract.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 font-mono text-slate-500">{contract.id}</td>
-                    <td className="px-6 py-4 font-medium text-slate-900">{contract.clientName}</td>
-                    <td className="px-6 py-4 text-slate-600">{contract.clientNif}</td>
-                    <td className="px-6 py-4 text-slate-600">{contract.date}</td>
-                    <td className="px-6 py-4 font-medium text-slate-900">{formatter.format(contract.value)}</td>
-                    <td className="px-6 py-4">
-                      <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-bold">
-                        {contract.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                       <button className="text-blue-600 hover:text-blue-800 p-1" title="Imprimir / PDF">
-                          <Printer size={18} />
-                       </button>
-                    </td>
+        <div className="animate-in fade-in duration-300">
+          {/* Filters */}
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 max-w-md">
+             <div className="relative">
+                <input 
+                  type="text" 
+                  value={filterContractQuery}
+                  onChange={(e) => setFilterContractQuery(e.target.value)}
+                  placeholder="Pesquisar por NIF ou Nome do Cliente..."
+                  className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50"
+                />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+             </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200">
+                  <tr>
+                    <th className="px-6 py-4">ID</th>
+                    <th className="px-6 py-4">Cliente</th>
+                    <th className="px-6 py-4">NIF</th>
+                    <th className="px-6 py-4">Data</th>
+                    <th className="px-6 py-4">Valor</th>
+                    <th className="px-6 py-4">Estado</th>
+                    <th className="px-6 py-4">Ações</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredContracts.length > 0 ? (
+                    filteredContracts.map((contract) => (
+                      <tr key={contract.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4 font-mono text-slate-500">{contract.id}</td>
+                        <td className="px-6 py-4 font-medium text-slate-900">{contract.clientName}</td>
+                        <td className="px-6 py-4 text-slate-600 font-mono">{contract.clientNif}</td>
+                        <td className="px-6 py-4 text-slate-600">{contract.date}</td>
+                        <td className="px-6 py-4 font-medium text-slate-900">{formatter.format(contract.value)}</td>
+                        <td className="px-6 py-4">
+                          <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-bold">
+                            {contract.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                           <button className="text-blue-600 hover:text-blue-800 p-1" title="Imprimir / PDF">
+                              <Printer size={18} />
+                           </button>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
+                         Nenhum contrato encontrado.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -242,7 +314,7 @@ export const AdminView: React.FC = () => {
                     <label className="text-xs font-semibold text-slate-500 uppercase">Cliente / Código</label>
                     <div className="relative">
                       <input 
-                        type="text"
+                        type="text" 
                         placeholder="Nome ou Rastreio..."
                         value={filterClient}
                         onChange={(e) => setFilterClient(e.target.value)}
@@ -271,6 +343,7 @@ export const AdminView: React.FC = () => {
                     <th className="px-6 py-4">Produto</th>
                     <th className="px-6 py-4">Cliente</th>
                     <th className="px-6 py-4">Data Est.</th>
+                    <th className="px-6 py-4">Frete (Est.)</th>
                     <th className="px-6 py-4">Estado</th>
                     <th className="px-6 py-4 text-right">Ações</th>
                   </tr>
@@ -286,6 +359,9 @@ export const AdminView: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 text-slate-700">{delivery.clientName}</td>
                         <td className="px-6 py-4 text-slate-600">{delivery.estimatedDate}</td>
+                        <td className="px-6 py-4 text-slate-600 font-mono text-xs">
+                          {formatter.format(getEstimatedShipping(delivery.deliveryAddress))}
+                        </td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${getStatusColor(delivery.status)}`}>
                              {getStatusIcon(delivery.status)}
@@ -304,7 +380,7 @@ export const AdminView: React.FC = () => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-slate-400">
+                      <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
                         Nenhuma entrega encontrada com os filtros selecionados.
                       </td>
                     </tr>
@@ -313,6 +389,73 @@ export const AdminView: React.FC = () => {
               </table>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* History View */}
+      {activeTab === 'history' && (
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-in fade-in duration-300">
+           <div className="p-6 border-b border-slate-200 bg-slate-50/50">
+             <h3 className="text-lg font-bold text-slate-900">Histórico de Encomendas Finalizadas</h3>
+             <p className="text-sm text-slate-500">Registo completo de todas as entregas concluídas ou canceladas.</p>
+           </div>
+           <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-white text-slate-600 font-medium border-b border-slate-200">
+                <tr>
+                  <th className="px-6 py-4">ID Pedido</th>
+                  <th className="px-6 py-4">Data Final</th>
+                  <th className="px-6 py-4">Cliente</th>
+                  <th className="px-6 py-4">Produto</th>
+                  <th className="px-6 py-4">Valor</th>
+                  <th className="px-6 py-4">Status Final</th>
+                  <th className="px-6 py-4 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {historyOrders.length > 0 ? (
+                  historyOrders.map((order) => (
+                    <tr key={order.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4 font-mono text-slate-500 font-medium">{order.trackingCode}</td>
+                      <td className="px-6 py-4 text-slate-600">
+                        {order.history[order.history.length - 1]?.date || order.estimatedDate}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-slate-900">{order.clientName}</div>
+                        <div className="text-xs text-slate-400">{order.clientPhone || 'Sem contacto'}</div>
+                      </td>
+                      <td className="px-6 py-4 text-slate-700">{order.productName}</td>
+                      <td className="px-6 py-4 font-medium text-slate-900 font-mono">
+                         {formatter.format(order.price)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${getStatusColor(order.status)}`}>
+                            {getStatusIcon(order.status)}
+                            {order.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                         <button 
+                            onClick={() => setSelectedDelivery(order)}
+                            className="text-slate-400 hover:text-blue-600 transition-colors"
+                            title="Ver Detalhes"
+                         >
+                            <ArrowRight size={18} />
+                         </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center text-slate-400 flex flex-col items-center justify-center">
+                       <Box size={40} className="mb-2 opacity-50" />
+                       <p>Nenhuma encomenda no histórico.</p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+           </div>
         </div>
       )}
 
@@ -492,18 +635,24 @@ export const AdminView: React.FC = () => {
                           {/* Vertical Line */}
                           <div className="absolute left-[27px] top-4 bottom-4 w-0.5 bg-slate-200"></div>
 
-                          {selectedDelivery.history.map((event, idx) => (
-                             <div key={idx} className="relative flex items-start gap-4 group">
+                          {selectedDelivery.history.map((event, idx) => {
+                             const isLast = idx === selectedDelivery.history.length - 1;
+                             return (
+                             <div key={idx} className={`relative flex items-start gap-4 group ${isLast ? 'opacity-100' : 'opacity-70'}`}>
                                 {/* Icon Bubble */}
                                 <div 
-                                   className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center shrink-0 border-4 border-white shadow-sm transition-transform group-hover:scale-110 ${getEventColor(event.status)}`}
+                                   className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center shrink-0 border-4 border-white shadow-sm transition-transform group-hover:scale-110 
+                                   ${getEventColor(event.status)} 
+                                   ${isLast ? 'ring-4 ring-blue-50 shadow-md scale-110' : ''}`}
                                 >
                                    {getEventIcon(event.status)}
                                 </div>
                                 
                                 {/* Content */}
                                 <div className="pt-1">
-                                   <p className="font-bold text-slate-900 text-sm leading-tight">{event.status}</p>
+                                   <p className={`font-bold leading-tight transition-colors ${isLast ? 'text-slate-900 text-base' : 'text-slate-500 text-sm'}`}>
+                                     {event.status}
+                                   </p>
                                    <p className="text-xs text-slate-400 mt-1 font-mono">{event.date}</p>
                                    <div className="flex items-center gap-1 text-xs text-slate-500 mt-1">
                                       <MapPin size={10} />
@@ -511,7 +660,8 @@ export const AdminView: React.FC = () => {
                                    </div>
                                 </div>
                              </div>
-                          ))}
+                             );
+                          })}
                        </div>
                     </div>
                  </div>

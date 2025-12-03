@@ -1,3 +1,4 @@
+
 export enum UserRole {
   ADMIN = 'Administrador',
   SELLER = 'Vendedor',
@@ -11,6 +12,20 @@ export interface User {
   nif?: string; // Angolan Tax ID
   email: string;
   phone?: string;
+  location?: string; // Main operational location
+  // Store Profile Fields
+  storeDescription?: string;
+  coverImage?: string;
+  rating?: number;
+  reviewCount?: number;
+  openingHours?: string; // Ex: "08:00 - 18:00"
+  tags?: string[];
+  isVerified?: boolean;
+}
+
+export interface ProductOption {
+  name: string; // Ex: "Cor", "Armazenamento", "Tamanho"
+  values: string[]; // Ex: ["Preto", "Branco"], ["128GB", "256GB"]
 }
 
 export interface Product {
@@ -18,6 +33,7 @@ export interface Product {
   name: string;
   description: string;
   price: number;
+  originalPrice?: number; // Preço original para promoções
   currency: string;
   stock: number;
   sellerId: string;
@@ -25,6 +41,7 @@ export interface Product {
   location: string; // e.g., "Luanda, Talatona"
   imageUrl: string;
   category: string;
+  options?: ProductOption[]; // Novas opções configuráveis
 }
 
 export enum DeliveryStatus {
@@ -65,5 +82,16 @@ export interface Contract {
 }
 
 export interface CartItem extends Product {
+  cartItemId: string; // ID único para a linha do carrinho (para diferenciar variantes)
   quantity: number;
+  selectedOptions?: { [key: string]: string }; // Ex: { "Cor": "Preto", "Tamanho": "42" }
+}
+
+export interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  time: string;
+  read: boolean;
+  type: 'info' | 'success' | 'warning' | 'error';
 }
