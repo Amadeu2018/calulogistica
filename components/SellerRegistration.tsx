@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Store, MapPin, FileText, Mail, Phone, Upload, CheckCircle, ArrowRight } from 'lucide-react';
-import { User, UserRole } from '../types';
+
+import React, { useState, useRef } from 'react';
+import { Store, MapPin, FileText, Mail, Phone, Upload, CheckCircle, ArrowRight, X, ShieldCheck, DollarSign, Clock, AlertCircle, Image as ImageIcon } from 'lucide-react';
 
 interface SellerRegistrationProps {
   onRegister: (sellerData: any) => void;
@@ -9,6 +9,10 @@ interface SellerRegistrationProps {
 
 export const SellerRegistration: React.FC<SellerRegistrationProps> = ({ onRegister, onCancel }) => {
   const [step, setStep] = useState(1);
+  const [showTerms, setShowTerms] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [formData, setFormData] = useState({
     storeName: '',
     nif: '',
@@ -16,12 +20,28 @@ export const SellerRegistration: React.FC<SellerRegistrationProps> = ({ onRegist
     email: '',
     phone: '',
     location: '',
-    description: ''
+    description: '',
+    storeLogo: '' // Accepts URL or Base64
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!agreedToTerms) {
+      alert("Você precisa aceitar os Termos e Condições para continuar.");
+      return;
+    }
     onRegister(formData);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData({ ...formData, storeLogo: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   return (
@@ -110,13 +130,53 @@ export const SellerRegistration: React.FC<SellerRegistrationProps> = ({ onRegist
                 />
               </div>
 
-              <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 flex items-start gap-3">
-                <Upload className="text-blue-600 mt-1" size={20} />
-                <div>
-                  <p className="font-medium text-blue-900">Logótipo da Loja (Opcional)</p>
-                  <p className="text-sm text-blue-700">Formatos aceites: JPG, PNG. Máx 2MB.</p>
-                  <button type="button" className="mt-2 text-sm font-bold text-blue-600 hover:underline">Escolher Ficheiro</button>
-                </div>
+              <div>
+                 <label className="block text-sm font-medium text-slate-700 mb-1">Logótipo / Imagem de Capa</label>
+                 <div className="space-y-3">
+                    {/* URL Input */}
+                    <div className="relative">
+                       <input
+                         type="text"
+                         value={formData.storeLogo}
+                         onChange={(e) => setFormData({...formData, storeLogo: e.target.value})}
+                         className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                         placeholder="Cole a URL da imagem aqui..."
+                       />
+                       <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                        <span className="text-xs text-slate-400 uppercase font-bold">OU</span>
+                        <input 
+                          type="file" 
+                          ref={fileInputRef}
+                          onChange={handleFileUpload}
+                          className="hidden" 
+                          accept="image/*"
+                        />
+                        <button 
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                        >
+                          <Upload size={16} /> Carregar do Dispositivo
+                        </button>
+                    </div>
+
+                    {/* Preview */}
+                    {formData.storeLogo && (
+                       <div className="mt-2 w-full h-32 bg-slate-100 rounded-lg overflow-hidden border border-slate-200 relative group">
+                          <img src={formData.storeLogo} alt="Preview" className="w-full h-full object-cover" />
+                          <button 
+                             type="button"
+                             onClick={() => setFormData({...formData, storeLogo: ''})}
+                             className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                             <X size={14} />
+                          </button>
+                       </div>
+                    )}
+                 </div>
               </div>
             </div>
           )}
@@ -170,11 +230,17 @@ export const SellerRegistration: React.FC<SellerRegistrationProps> = ({ onRegist
                   <p className="text-xs text-slate-500 mt-1">Esta localização será exibida nos seus produtos.</p>
               </div>
 
-              <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-lg">
-                <input type="checkbox" required className="mt-1 w-4 h-4 text-blue-600 rounded" />
-                <p className="text-sm text-slate-600">
-                  Li e aceito os <a href="#" className="text-blue-600 hover:underline">Termos de Vendedor</a> e a Política de Privacidade. Confirmo que possuo licença comercial válida.
-                </p>
+              <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                <input 
+                  type="checkbox" 
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  className="mt-1 w-4 h-4 text-blue-600 rounded cursor-pointer" 
+                  id="terms-check"
+                />
+                <label htmlFor="terms-check" className="text-sm text-slate-600 cursor-pointer">
+                  Li e aceito os <button type="button" onClick={() => setShowTerms(true)} className="text-blue-600 hover:underline font-medium">Termos de Parceria e Contrato de Vendedor</button>. Confirmo que possuo licença comercial válida.
+                </label>
               </div>
             </div>
           )}
@@ -220,6 +286,65 @@ export const SellerRegistration: React.FC<SellerRegistrationProps> = ({ onRegist
           </div>
         </form>
       </div>
+
+      {/* Terms & Conditions Modal */}
+      {showTerms && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+           <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[80vh] animate-in zoom-in-95">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                 <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                    <ShieldCheck className="text-blue-600" /> Contrato de Parceria
+                 </h3>
+                 <button onClick={() => setShowTerms(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+              </div>
+              
+              <div className="p-6 overflow-y-auto text-sm text-slate-600 space-y-4 leading-relaxed">
+                 <p className="font-bold text-slate-900">1. Objeto</p>
+                 <p>O presente contrato estabelece os termos para a utilização da plataforma KwanzaLogistics pelo Vendedor para a comercialização de produtos em Angola.</p>
+
+                 <p className="font-bold text-slate-900 mt-4">2. Comissões e Taxas</p>
+                 <ul className="list-disc pl-5 space-y-1">
+                    <li>A KwanzaLogistics cobra uma <strong>taxa de serviço de 10%</strong> sobre o valor total de cada venda realizada com sucesso.</li>
+                    <li>Não há custos de adesão ou mensalidades fixas.</li>
+                 </ul>
+
+                 <p className="font-bold text-slate-900 mt-4">3. Pagamentos e Saques</p>
+                 <ul className="list-disc pl-5 space-y-1">
+                    <li>O saldo das vendas fica disponível na carteira virtual após a confirmação de entrega ao cliente.</li>
+                    <li>Os saques para contas bancárias angolanas são processados em até <strong>24 horas úteis</strong>.</li>
+                    <li>O Vendedor deve fornecer um IBAN válido titularidade da empresa ou representante legal.</li>
+                 </ul>
+
+                 <p className="font-bold text-slate-900 mt-4">4. Obrigações do Vendedor</p>
+                 <p>O Vendedor compromete-se a:</p>
+                 <ul className="list-disc pl-5 space-y-1">
+                    <li>Vender apenas produtos originais e legais em território angolano.</li>
+                    <li>Manter o stock atualizado na plataforma para evitar cancelamentos.</li>
+                    <li>Preparar a encomenda para recolha em até 24 horas após a notificação de venda.</li>
+                    <li>Emitir faturas válidas para os clientes finais.</li>
+                 </ul>
+
+                 <p className="font-bold text-slate-900 mt-4">5. Política de Entregas</p>
+                 <p>A logística de recolha e entrega é de responsabilidade exclusiva da KwanzaLogistics e seus parceiros. O Vendedor deve garantir que o produto esteja devidamente embalado.</p>
+              </div>
+
+              <div className="p-6 border-t border-slate-100 bg-slate-50 rounded-b-2xl flex justify-end gap-3">
+                 <button 
+                   onClick={() => setShowTerms(false)} 
+                   className="px-4 py-2 text-slate-600 hover:bg-white border border-transparent hover:border-slate-200 rounded-lg transition-colors"
+                 >
+                    Fechar
+                 </button>
+                 <button 
+                   onClick={() => { setAgreedToTerms(true); setShowTerms(false); }} 
+                   className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                 >
+                    Li e Aceito os Termos
+                 </button>
+              </div>
+           </div>
+        </div>
+      )}
     </div>
   );
 };

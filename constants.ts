@@ -84,7 +84,8 @@ export const MOCK_PRODUCTS: Product[] = [
     options: [
       { name: 'Cor', values: ['Titânio Natural', 'Titânio Azul', 'Titânio Preto'] },
       { name: 'Armazenamento', values: ['256GB', '512GB', '1TB'] }
-    ]
+    ],
+    unavailableOptions: ['Titânio Azul']
   },
   {
     id: 'p2',
@@ -131,7 +132,8 @@ export const MOCK_PRODUCTS: Product[] = [
     options: [
       { name: 'Cor do Tecido', values: ['Cinza', 'Bege', 'Azul Marinho'] },
       { name: 'Lado do Canto', values: ['Esquerdo', 'Direito'] }
-    ]
+    ],
+    unavailableOptions: ['Bege']
   },
   {
     id: 'p5',
@@ -163,7 +165,8 @@ export const MOCK_PRODUCTS: Product[] = [
     options: [
       { name: 'Tamanho', values: ['40', '41', '42', '43', '44'] },
       { name: 'Cor', values: ['Vermelho/Preto', 'Branco/Preto'] }
-    ]
+    ],
+    unavailableOptions: ['44', 'Branco/Preto']
   },
   {
     id: 'p7',
@@ -180,7 +183,8 @@ export const MOCK_PRODUCTS: Product[] = [
     category: 'Eletrónica',
     options: [
       { name: 'Cor da Bracelete', values: ['Preto', 'Rosa', 'Cinza'] }
-    ]
+    ],
+    unavailableOptions: ['Rosa']
   }
 ];
 

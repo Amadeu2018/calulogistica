@@ -10,7 +10,7 @@ import { SellerRegistration } from './components/SellerRegistration';
 import { StoresView } from './components/StoresView';
 import { MOCK_PRODUCTS, MOCK_USERS, MOCK_DELIVERIES } from './constants';
 import { Product, User, UserRole, CartItem, Notification, DeliveryStatus } from './types';
-import { Filter, ShoppingCart, CreditCard, Banknote, CheckCircle, Smartphone, Store, Mail, Phone, MapPin, X, Calendar, Star, ChevronRight, User as UserIcon, ShieldCheck, Zap, Search, ChevronDown, LogOut, Heart, ArrowRight, Package, Minus, Plus, Trash2, ArrowLeft, ChevronLeft, SlidersHorizontal, Clock, Tag, Check } from 'lucide-react';
+import { Filter, ShoppingCart, CreditCard, Banknote, CheckCircle, Smartphone, Store, Mail, Phone, MapPin, X, Calendar, Star, ChevronRight, User as UserIcon, ShieldCheck, Zap, Search, ChevronDown, LogOut, Heart, ArrowRight, Package, Minus, Plus, Trash2, ArrowLeft, ChevronLeft, SlidersHorizontal, Clock, Tag, Check, AlertTriangle, Facebook, Instagram, Twitter, Linkedin } from 'lucide-react';
 
 function App() {
   const [currentView, setCurrentView] = useState('home'); // home, tracking, admin, cart, seller-dashboard, seller-register, wishlist, client-orders, stores
@@ -24,8 +24,9 @@ function App() {
   ]);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   
-  // Product Options Selection State
+  // Product Options Selection State (For Adding and Editing)
   const [productToSelectOptions, setProductToSelectOptions] = useState<Product | null>(null);
+  const [cartItemToEdit, setCartItemToEdit] = useState<CartItem | null>(null); // New state for editing cart items
   const [currentSelection, setCurrentSelection] = useState<{ [key: string]: string }>({});
 
   // Checkout State
@@ -133,6 +134,7 @@ function App() {
   const handleAddToCartClick = (product: Product) => {
     if (product.options && product.options.length > 0) {
        setProductToSelectOptions(product);
+       setCartItemToEdit(null); // Ensure we are not editing
        setCurrentSelection({});
     } else {
        addToCart(product);
@@ -167,11 +169,38 @@ function App() {
     });
   };
 
+  const handleEditCartItem = (item: CartItem) => {
+    setCartItemToEdit(item);
+    setProductToSelectOptions(null);
+    setCurrentSelection(item.selectedOptions || {});
+  };
+
+  const handleUpdateCartItemOptions = () => {
+    if (!cartItemToEdit) return;
+    
+    setCart(prev => prev.map(item => {
+      if (item.cartItemId === cartItemToEdit.cartItemId) {
+        return {
+          ...item,
+          selectedOptions: currentSelection
+        };
+      }
+      return item;
+    }));
+    
+    addNotification('Opções do produto atualizadas com sucesso!', 'success');
+    setCartItemToEdit(null);
+    setCurrentSelection({});
+  };
+
   const confirmOptionsSelection = () => {
-     if (!productToSelectOptions) return;
-     addToCart(productToSelectOptions, currentSelection);
-     setProductToSelectOptions(null);
-     setCurrentSelection({});
+     if (cartItemToEdit) {
+       handleUpdateCartItemOptions();
+     } else if (productToSelectOptions) {
+       addToCart(productToSelectOptions, currentSelection);
+       setProductToSelectOptions(null);
+       setCurrentSelection({});
+     }
   };
 
   const updateQuantity = (cartItemId: string, delta: number) => {
@@ -207,7 +236,7 @@ function App() {
   const addNotification = (message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
     const newNotif: Notification = {
       id: Date.now().toString(),
-      title: type === 'success' ? 'Sucesso' : 'Informação',
+      title: type === 'success' ? 'Sucesso' : type === 'warning' ? 'Atenção' : 'Informação',
       message,
       time: 'Agora',
       read: false,
@@ -290,12 +319,15 @@ function App() {
       nif: sellerData.nif,
       location: sellerData.location,
       storeDescription: sellerData.description,
-      isVerified: false
+      coverImage: sellerData.storeLogo || '', // Map Logo URL to Cover Image
+      isVerified: false,
+      openingHours: '09:00 - 18:00',
+      tags: [sellerData.category]
     };
     setUsers(prev => [...prev, newSeller]);
     setCurrentUser(newSeller);
     setCurrentView('seller-dashboard');
-    addNotification(`Loja ${sellerData.storeName} registada!`, 'success');
+    addNotification(`Loja ${sellerData.storeName} registada com sucesso!`, 'success');
   };
 
   const handlePromoNext = () => {
@@ -317,6 +349,9 @@ function App() {
   // Seller Data Helper (using dynamic users list)
   const selectedSeller = users.find(u => u.id === selectedSellerId);
   const sellerProducts = products.filter(p => p.sellerId === selectedSellerId);
+
+  // Modal Variables
+  const activeModalProduct = cartItemToEdit || productToSelectOptions;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -752,12 +787,22 @@ function App() {
                                    </div>
                                    {/* Selected Variants */}
                                    {item.selectedOptions && (
-                                     <div className="mt-2 flex flex-wrap gap-2">
+                                     <div className="mt-2 flex flex-wrap gap-2 items-center">
                                         {Object.entries(item.selectedOptions).map(([key, value]) => (
                                            <span key={key} className="bg-slate-50 text-slate-600 px-2 py-0.5 rounded text-xs border border-slate-200">
                                               {key}: <span className="font-bold text-slate-800">{value}</span>
                                            </span>
                                         ))}
+                                        {/* Edit Options Button */}
+                                        {item.options && item.options.length > 0 && (
+                                          <button 
+                                            onClick={() => handleEditCartItem(item)}
+                                            className="text-blue-600 hover:bg-blue-50 p-1 rounded-md transition-colors"
+                                            title="Alterar Opções"
+                                          >
+                                            <SlidersHorizontal size={14} />
+                                          </button>
+                                        )}
                                      </div>
                                    )}
                                 </div>
@@ -860,7 +905,13 @@ function App() {
         <div className="max-w-7xl mx-auto px-4 grid md:grid-cols-3 gap-8 text-sm">
            <div>
              <h4 className="text-white font-bold text-lg mb-4">KwanzaLogistics</h4>
-             <p>A maior rede de entregas de Angola. Conectando Cabinda ao Cunene.</p>
+             <p className="mb-6">A maior rede de entregas de Angola. Conectando Cabinda ao Cunene.</p>
+             <div className="flex gap-4">
+                <a href="#" className="hover:text-white transition-colors p-2 bg-slate-800 rounded-full"><Facebook size={20} /></a>
+                <a href="#" className="hover:text-white transition-colors p-2 bg-slate-800 rounded-full"><Instagram size={20} /></a>
+                <a href="#" className="hover:text-white transition-colors p-2 bg-slate-800 rounded-full"><Twitter size={20} /></a>
+                <a href="#" className="hover:text-white transition-colors p-2 bg-slate-800 rounded-full"><Linkedin size={20} /></a>
+             </div>
            </div>
            <div>
              <h4 className="text-white font-bold mb-4">Links Úteis</h4>
@@ -881,45 +932,79 @@ function App() {
 
       <ChatWidget />
 
-      {/* Product Options Selection Modal */}
-      {productToSelectOptions && (
+      {/* Product Options Selection Modal (Shared for Adding and Editing) */}
+      {(activeModalProduct) && (
          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
                <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                  <h3 className="font-bold text-slate-900">Personalizar Produto</h3>
-                  <button onClick={() => setProductToSelectOptions(null)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+                  <h3 className="font-bold text-slate-900">
+                    {cartItemToEdit ? 'Editar Opções' : 'Personalizar Produto'}
+                  </h3>
+                  <button 
+                    onClick={() => { setProductToSelectOptions(null); setCartItemToEdit(null); }} 
+                    className="text-slate-400 hover:text-slate-600"
+                  >
+                    <X size={20} />
+                  </button>
                </div>
                
                <div className="p-6">
                   <div className="flex items-start gap-4 mb-6">
                      <div className="w-20 h-20 bg-slate-100 rounded-lg overflow-hidden shrink-0">
-                        <img src={productToSelectOptions.imageUrl} alt={productToSelectOptions.name} className="w-full h-full object-cover" />
+                        <img src={activeModalProduct.imageUrl} alt={activeModalProduct.name} className="w-full h-full object-cover" />
                      </div>
                      <div>
-                        <h4 className="font-bold text-slate-900 text-lg">{productToSelectOptions.name}</h4>
-                        <p className="text-blue-600 font-bold">{formatter.format(productToSelectOptions.price)}</p>
+                        <h4 className="font-bold text-slate-900 text-lg">{activeModalProduct.name}</h4>
+                        <p className="text-blue-600 font-bold">{formatter.format(activeModalProduct.price)}</p>
                      </div>
                   </div>
 
                   <div className="space-y-6">
-                     {productToSelectOptions.options?.map(option => (
+                     {activeModalProduct.options?.map(option => (
                         <div key={option.name}>
                            <p className="text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">{option.name}</p>
                            <div className="flex flex-wrap gap-2">
-                              {option.values.map(val => (
+                              {option.values.map(val => {
+                                 // Check unavailable logic
+                                 const isUnavailable = activeModalProduct.unavailableOptions?.includes(val);
+                                 
+                                 return (
                                  <button
                                     key={val}
-                                    onClick={() => setCurrentSelection({...currentSelection, [option.name]: val})}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all ${
-                                       currentSelection[option.name] === val 
-                                       ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-offset-1 ring-slate-900' 
-                                       : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                                    }`}
+                                    onClick={() => {
+                                      if (isUnavailable) {
+                                         addNotification(`A opção "${val}" está esgotada no momento.`, 'warning');
+                                         return;
+                                      }
+                                      setCurrentSelection({...currentSelection, [option.name]: val});
+                                    }}
+                                    className={`relative px-4 py-2 rounded-lg text-sm font-medium border transition-all 
+                                      ${isUnavailable 
+                                        ? 'bg-slate-100 text-slate-400 border-slate-100 cursor-not-allowed opacity-70' 
+                                        : currentSelection[option.name] === val 
+                                          ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-offset-1 ring-slate-900' 
+                                          : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                      }`}
                                  >
                                     {val}
+                                    {/* Unavailable Strike-through or Tooltip */}
+                                    {isUnavailable && (
+                                       <div className="absolute inset-0 flex items-center justify-center">
+                                          <div className="w-full h-px bg-slate-400 rotate-12"></div>
+                                       </div>
+                                    )}
                                  </button>
-                              ))}
+                              )})}
                            </div>
+                           {/* Warning msg if selection is unavailable */}
+                           {activeModalProduct.options?.some(opt => {
+                              const selectedVal = currentSelection[opt.name];
+                              return selectedVal && activeModalProduct.unavailableOptions?.includes(selectedVal);
+                           }) && (
+                             <p className="text-xs text-red-500 mt-2 flex items-center gap-1">
+                               <AlertTriangle size={12} /> Alguma opção selecionada não está disponível.
+                             </p>
+                           )}
                         </div>
                      ))}
                   </div>
@@ -928,10 +1013,10 @@ function App() {
                <div className="p-4 bg-slate-50 border-t border-slate-100">
                   <button 
                      onClick={confirmOptionsSelection}
-                     disabled={productToSelectOptions.options?.some(opt => !currentSelection[opt.name])}
+                     disabled={activeModalProduct.options?.some(opt => !currentSelection[opt.name])}
                      className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                     <CheckCircle size={18} /> Confirmar e Adicionar
+                     <CheckCircle size={18} /> {cartItemToEdit ? 'Salvar Alterações' : 'Confirmar e Adicionar'}
                   </button>
                </div>
             </div>
@@ -1134,7 +1219,7 @@ function App() {
                           if (selectedSellerId) {
                              setFilterSeller(selectedSellerId);
                              setSelectedSellerId(null);
-                             setCurrentView('home'); // Ensure we go to grid
+                             setCurrentView('home'); // Ensure we are not in grid
                              window.scrollTo({ top: 0, behavior: 'smooth' });
                           }
                        }}

@@ -42,6 +42,7 @@ export interface Product {
   imageUrl: string;
   category: string;
   options?: ProductOption[]; // Novas opções configuráveis
+  unavailableOptions?: string[]; // Simulação de variantes específicas esgotadas (ex: "44", "Azul")
 }
 
 export enum DeliveryStatus {

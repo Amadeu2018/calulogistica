@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+
+import React, { useState, useRef } from 'react';
 import { Product, User, DeliveryStatus } from '../types';
 import { MOCK_DELIVERIES } from '../constants';
-import { LayoutDashboard, Package, ShoppingBag, Settings, Plus, Edit, Trash2, Search, TrendingUp, DollarSign, Percent, Zap, Image as ImageIcon, MapPin, CreditCard, Save, AlertCircle, CheckCircle, Truck, User as UserIcon, Calendar, Clock, X, Tag } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingBag, Settings, Plus, Edit, Trash2, Search, TrendingUp, DollarSign, Percent, Zap, Image as ImageIcon, MapPin, CreditCard, Save, AlertCircle, CheckCircle, Truck, User as UserIcon, Calendar, Clock, X, Tag, Upload } from 'lucide-react';
 
 interface SellerDashboardProps {
   currentUser: User;
@@ -25,6 +26,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   // Product Modal State
   const [showProductModal, setShowProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const productImageInputRef = useRef<HTMLInputElement>(null);
   const [productForm, setProductForm] = useState<Partial<Product>>({
     name: '',
     description: '',
@@ -41,6 +43,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
   const [withdrawIban, setWithdrawIban] = useState('');
 
   // Settings State
+  const coverImageInputRef = useRef<HTMLInputElement>(null);
   const [storeSettings, setStoreSettings] = useState({
     name: currentUser.name,
     email: currentUser.email,
@@ -152,6 +155,28 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
           tags: storeSettings.tags.split(',').map(t => t.trim()).filter(t => t),
           coverImage: storeSettings.coverImage
        });
+    }
+  };
+
+  const handleProductImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProductForm(prev => ({ ...prev, imageUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCoverImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setStoreSettings(prev => ({ ...prev, coverImage: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -519,16 +544,49 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                     </div>
 
                     <div>
-                       <label className="block text-sm font-medium text-slate-700 mb-1">URL Imagem de Capa</label>
-                       <div className="relative">
-                          <input 
-                             type="text" 
-                             value={storeSettings.coverImage}
-                             onChange={(e) => setStoreSettings({...storeSettings, coverImage: e.target.value})}
-                             placeholder="https://..."
-                             className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" 
-                          />
-                          <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                       <label className="block text-sm font-medium text-slate-700 mb-1">Imagem de Capa (URL ou Upload)</label>
+                       <div className="space-y-3">
+                          <div className="relative">
+                              <input 
+                                 type="text" 
+                                 value={storeSettings.coverImage}
+                                 onChange={(e) => setStoreSettings({...storeSettings, coverImage: e.target.value})}
+                                 placeholder="https://..."
+                                 className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" 
+                              />
+                              <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                          </div>
+                          
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-slate-400 uppercase font-bold">OU</span>
+                            <input 
+                              type="file" 
+                              ref={coverImageInputRef}
+                              onChange={handleCoverImageUpload}
+                              className="hidden" 
+                              accept="image/*"
+                            />
+                            <button 
+                              type="button"
+                              onClick={() => coverImageInputRef.current?.click()}
+                              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                            >
+                              <Upload size={16} /> Carregar Arquivo
+                            </button>
+                          </div>
+
+                          {storeSettings.coverImage && (
+                             <div className="mt-2 w-full h-32 bg-slate-100 rounded-lg overflow-hidden border border-slate-200 relative group">
+                                <img src={storeSettings.coverImage} alt="Cover Preview" className="w-full h-full object-cover" />
+                                <button 
+                                   type="button"
+                                   onClick={() => setStoreSettings({...storeSettings, coverImage: ''})}
+                                   className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                   <X size={14} />
+                                </button>
+                             </div>
+                          )}
                        </div>
                     </div>
 
@@ -631,15 +689,42 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
                  </div>
 
                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Link da Imagem</label>
-                    <div className="relative">
-                      <input 
-                        type="text" 
-                        value={productForm.imageUrl} 
-                        onChange={e => setProductForm({...productForm, imageUrl: e.target.value})}
-                        className="w-full border border-slate-300 rounded-lg pl-10 pr-2.5 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <ImageIcon size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Imagem do Produto</label>
+                    <div className="space-y-3">
+                        <div className="relative">
+                          <input 
+                            type="text" 
+                            value={productForm.imageUrl} 
+                            onChange={e => setProductForm({...productForm, imageUrl: e.target.value})}
+                            placeholder="URL da imagem..."
+                            className="w-full border border-slate-300 rounded-lg pl-10 pr-2.5 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <ImageIcon size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        </div>
+                        
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs text-slate-400 uppercase font-bold">OU</span>
+                            <input 
+                              type="file" 
+                              ref={productImageInputRef}
+                              onChange={handleProductImageUpload}
+                              className="hidden" 
+                              accept="image/*"
+                            />
+                            <button 
+                              type="button"
+                              onClick={() => productImageInputRef.current?.click()}
+                              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                            >
+                              <Upload size={16} /> Carregar Arquivo
+                            </button>
+                        </div>
+                        
+                        {productForm.imageUrl && (
+                          <div className="w-20 h-20 bg-slate-100 rounded-lg overflow-hidden border border-slate-200">
+                             <img src={productForm.imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                          </div>
+                        )}
                     </div>
                  </div>
 
